@@ -1,5 +1,6 @@
 import type { IAuthService, AuthResult, LoginInput, RegisterInput } from "../interfaces/services/auth.service.interface.js";
 import type { IUser, IUserRepository } from "../interfaces/repositories/user.repository.interface.js";
+import { env } from "../config/env.js";
 import { comparePassword, hashPassword } from "../utils/hash.js";
 import { signToken } from "../utils/jwt.js";
 
@@ -12,10 +13,13 @@ export class AuthService implements IAuthService {
       throw Object.assign(new Error("Email already registered"), { status: 409 });
     }
     const passwordHash = await hashPassword(input.password);
+    const email = input.email.toLowerCase();
+    const role = env.ADMIN_EMAIL && email === env.ADMIN_EMAIL ? "admin" : "user";
     const user = await this.users.create({
-      email: input.email.toLowerCase(),
+      email,
       passwordHash,
       displayName: input.displayName,
+      role,
     });
     return this.toAuthResult(user);
   }
@@ -39,6 +43,7 @@ export class AuthService implements IAuthService {
         id: user._id.toString(),
         email: user.email,
         displayName: user.displayName,
+        role: user.role ?? "user",
       },
       tokens: { accessToken },
     };

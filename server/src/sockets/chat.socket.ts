@@ -25,7 +25,13 @@ export function registerChatSockets(io: Server, chatRepo: IChatRepository): void
   io.on("connection", (socket) => {
     socket.on("join_room", (roomId: string) => {
       if (typeof roomId === "string" && roomId.trim()) {
-        void socket.join(roomId.trim());
+        const trimmed = roomId.trim();
+        void socket.join(trimmed);
+        socket.to(trimmed).emit("user:joined", {
+          userId: socket.data.userId as string,
+          email: socket.data.email as string,
+          roomId: trimmed,
+        });
       }
     });
 

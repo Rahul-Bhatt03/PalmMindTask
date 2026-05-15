@@ -27,10 +27,13 @@ async function main(): Promise<void> {
   const statsService = new StatsService(userRepo, chatRepo);
 
   const app = createApp({
-    auth: new AuthController(authService),
-    user: new UserController(userService),
-    chat: new ChatController(chatService),
-    stats: new StatsController(statsService),
+    controllers: {
+      auth: new AuthController(authService),
+      user: new UserController(userService),
+      chat: new ChatController(chatService),
+      stats: new StatsController(statsService),
+    },
+    userRepository: userRepo,
   });
 
   const httpServer = http.createServer(app);
