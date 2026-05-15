@@ -31,7 +31,7 @@ npm start
 | `MONGODB_URI`  | Mongo connection string              |
 | `JWT_SECRET`   | Secret for signing JWTs              |
 | `JWT_EXPIRES_IN` | Token lifetime (e.g. `7d`)       |
-| `CORS_ORIGIN`  | Allowed browser origin or `*`        |
+| `CORS_ORIGIN`  | Allowed origin(s), comma-separated, or `*` |
 
 ## HTTP routes
 
@@ -53,9 +53,10 @@ Connect with the same origin/CORS settings. Authenticate with JWT:
 
 Events:
 
-- `join_room` — payload: room id string
+- `join_room` — payload: room id string; server emits `user:joined` to others in the room
 - `chat:message` — `{ roomId, body }` — optional ack callback `{ ok, id?, error? }`
 - Server emits `chat:message` to the room with `{ id, roomId, senderId, body, createdAt }`
+- Server emits `user:joined` with `{ userId, email, roomId }` when another client joins
 
 ## Project layout
 

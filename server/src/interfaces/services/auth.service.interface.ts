@@ -14,7 +14,7 @@ export interface LoginInput {
 }
 
 export interface AuthResult {
-  user: { id: string; email: string; displayName: string };
+  user: { id: string; email: string; displayName: string; role: "user" | "admin" };
   tokens: AuthTokens;
 }
 
