@@ -1,6 +1,6 @@
 # InternTask — Real-Time Chat Platform
 
-Full-stack TypeScript chat application: Express + MongoDB + Socket.IO backend and a React + Vite frontend with live messaging, JWT auth, and a production-oriented folder structure.
+Full-stack TypeScript chat application: Express + MongoDB + Socket.IO backend and a React + Vite frontend with live messaging, JWT auth, user management, and a mobile-friendly UI.
 
 ## Tech Stack
 
@@ -12,86 +12,69 @@ Full-stack TypeScript chat application: Express + MongoDB + Socket.IO backend an
 | Database | MongoDB + Mongoose 8 |
 | Real-time | Socket.IO 4 |
 | Auth | JWT (`jsonwebtoken`) + bcrypt password hashing |
-| Dev | `tsx` (watch mode) |
+| Frontend | React 18, Vite 5, Tailwind CSS, Redux Toolkit |
+| Dev | `tsx` (server watch), Vite HMR (frontend) |
 
-## Features Developed
+## Features
 
 ### Authentication & users
 
-- **Register** — Create an account with email, password, and display name. Passwords are hashed with bcrypt before storage.
-- **Login** — Authenticate and receive a JWT access token plus a safe user object (no password hash).
-- **Current user profile** — `GET /api/users/me` returns the logged-in user’s profile when a valid Bearer token is sent.
+- **Register / login** — Email, password, and display name; passwords hashed with bcrypt; JWT returned on success.
+- **Roles** — `user` (default) or `admin`. Set `ADMIN_EMAIL` in server `.env` so that email gets `admin` on register.
+- **Current profile** — `GET /api/users/me` (Bearer).
+- **List users** — `GET /api/users?page=&limit=` — admin only, paginated, no `passwordHash`.
+- **Get user** — `GET /api/users/:id` — admin or the user themselves.
+- **Update user** — `PUT /api/users/:id` — owner or admin; only `displayName` and `email` (protected fields rejected).
+- **Delete user** — `DELETE /api/users/:id` — admin only; soft delete via `deletedAt`.
 
-### Chat (REST)
+### Chat (REST + real-time)
 
-- **List messages** — `GET /api/chat/messages?roomId=<id>` returns messages for a room, ordered by creation time.
-- **Send message** — `POST /api/chat/messages` (authenticated) persists a message with `roomId` and `body` (max 4,000 characters).
+- **Message history** — `GET /api/chat/messages?roomId=`
+- **Send message** — `POST /api/chat/messages` (Bearer)
+- **Socket.IO** — JWT on connect; `join_room`, `chat:message` with optional ack; live broadcast per room
 
-### Chat (real-time)
+### Frontend
 
-- **JWT on connect** — Clients authenticate via `auth.token` or `query.token`.
-- **Join room** — `join_room` event subscribes the socket to a room channel.
-- **Send & broadcast** — `chat:message` saves the message, broadcasts to everyone in the room, and supports an optional acknowledgment callback `{ ok, id?, error? }`.
+- Chat with room sidebar (drawer on mobile), live feed, activity log, stats
+- **Profile** (`/profile`) — edit display name and email
+- **User management** (`/users`) — admin-only list, pagination, delete
+- Responsive layout (mobile drawer, compact header, stacked forms)
 
-### Operations & observability
+### Operations
 
-- **Health check** — `GET /health` for liveness probes.
-- **App stats** — `GET /api/stats` returns total user and message counts.
-- **Consistent API responses** — Success payloads use `{ success: true, data }`; errors use `{ success: false, error: { message } }`.
-- **Centralized error handling** — Global error middleware maps service errors to HTTP status codes.
+- `GET /health` — liveness
+- `GET /api/stats` — user and message counts (non-deleted users)
+- Consistent JSON: `{ success: true, data }` / `{ success: false, error: { message } }`
 
-### Architecture & quality
-
-- **Layered design** — `routes` → `controllers` → `services` → `repositories` → Mongoose `models`.
-- **Interfaces** — Service and repository contracts for clearer boundaries and testing.
-- **Request validation** — Body validation middleware on auth routes.
-- **Auth middleware** — Bearer JWT verification for protected HTTP routes.
-- **Environment config** — Typed config from `.env` with an example file (no secrets committed).
-
-## Repository Layout
+## Repository layout
 
 ```
 InternTask/
 ├── LICENSE
-├── README.md          ← this file
-├── frontend/          ← React + Vite chat client
-└── server/            ← Express + Socket.IO API
-    ├── .env.example
-    ├── package.json
-    ├── README.md      ← detailed API & socket reference
-    └── src/
-        ├── app.ts
-        ├── server.ts
-        ├── config/     # env, db, socket
-        ├── controllers/
-        ├── services/
-        ├── repositories/
-        ├── models/
-        ├── routes/
-        ├── middlewares/
-        ├── sockets/
-        ├── interfaces/
-        └── utils/
+├── README.md
+├── frontend/          # React + Vite client (see frontend/README.md)
+└── server/            # Express + Socket.IO API (see server/README.md)
 ```
 
-## Quick Start
+## Quick start
 
 ### Prerequisites
 
-- Node.js 18 or newer
-- MongoDB running and reachable (local or Atlas)
+- Node.js 18+
+- MongoDB (local or Atlas)
 
 ### Backend
 
 ```bash
 cd server
 cp .env.example .env
-# Edit .env — set MONGODB_URI, JWT_SECRET, and CORS_ORIGIN=http://localhost:3000
+# Set MONGODB_URI, JWT_SECRET, CORS_ORIGIN=http://localhost:3000
+# Optional: ADMIN_EMAIL=admin@example.com
 npm install
 npm run dev
 ```
 
-The API listens on `PORT` (default **4000**).
+API default: **http://localhost:4000**
 
 ### Frontend
 
@@ -102,69 +85,79 @@ npm install
 npm run dev
 ```
 
-The UI runs at **http://localhost:3000**. See [frontend/README.md](frontend/README.md) for architecture, env vars, and Socket.IO usage.
+UI default: **http://localhost:3000**
 
 ### Production build
 
 ```bash
-cd server
-npm run build
-npm start
+cd server && npm run build && npm start
+cd frontend && npm run build   # output in frontend/dist
 ```
 
-## Environment Variables
+## Environment variables (server)
 
 | Variable | Description |
 |----------|-------------|
 | `PORT` | HTTP port (default `4000`) |
 | `MONGODB_URI` | MongoDB connection string |
-| `JWT_SECRET` | Secret used to sign JWTs |
+| `JWT_SECRET` | Secret for signing JWTs |
 | `JWT_EXPIRES_IN` | Token lifetime (e.g. `7d`) |
-| `CORS_ORIGIN` | Allowed browser origin, or `*` |
+| `CORS_ORIGIN` | Allowed origins (comma-separated) or `*` |
+| `ADMIN_EMAIL` | Optional; register with this email → `admin` role |
 
-See [server/.env.example](server/.env.example) for a starter template.
+See [server/.env.example](server/.env.example).
 
-## API Overview
+## API overview
 
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| GET | `/health` | No | Liveness check |
-| POST | `/api/auth/register` | No | Register (`email`, `password`, `displayName`) |
-| POST | `/api/auth/login` | No | Login (`email`, `password`) |
-| GET | `/api/users/me` | Bearer | Current user profile |
-| GET | `/api/chat/messages?roomId=` | No | List messages in a room |
-| POST | `/api/chat/messages` | Bearer | Create message (`roomId`, `body`) |
-| GET | `/api/stats` | No | User and message counts |
+| Method | Path | Auth | Access | Description |
+|--------|------|------|--------|-------------|
+| GET | `/health` | — | Public | Liveness |
+| POST | `/api/auth/register` | — | Public | Register |
+| POST | `/api/auth/login` | — | Public | Login |
+| GET | `/api/users/me` | Bearer | Self | Current user |
+| GET | `/api/users` | Bearer | Admin | Paginated users (`?page=1&limit=20`) |
+| GET | `/api/users/:id` | Bearer | Admin or self | User by ID |
+| PUT | `/api/users/:id` | Bearer | Admin or owner | Update `displayName`, `email` |
+| DELETE | `/api/users/:id` | Bearer | Admin | Soft delete user |
+| GET | `/api/chat/messages?roomId=` | — | Public | List messages |
+| POST | `/api/chat/messages` | Bearer | User | Create message |
+| GET | `/api/stats` | — | Public | User & message counts |
 
-### Example: register and send a message
+### Example: admin user flow
 
 ```bash
-# Register
+# Register admin (if ADMIN_EMAIL=admin@example.com in .env)
 curl -s -X POST http://localhost:4000/api/auth/register \
   -H "Content-Type: application/json" \
-  -d '{"email":"user@example.com","password":"secret123","displayName":"Alex"}'
+  -d '{"email":"admin@example.com","password":"secret123","displayName":"Admin"}'
 
-# Login (copy accessToken from response)
+# Login and save TOKEN from data.tokens.accessToken
 curl -s -X POST http://localhost:4000/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"user@example.com","password":"secret123"}'
+  -d '{"email":"admin@example.com","password":"secret123"}'
 
-# Post a message (replace TOKEN)
-curl -s -X POST http://localhost:4000/api/chat/messages \
-  -H "Content-Type: application/json" \
+# List users (admin)
+curl -s "http://localhost:4000/api/users?page=1&limit=20" \
+  -H "Authorization: Bearer TOKEN"
+
+# Update own profile
+curl -s -X PUT http://localhost:4000/api/users/USER_ID \
   -H "Authorization: Bearer TOKEN" \
-  -d '{"roomId":"general","body":"Hello, world!"}'
+  -H "Content-Type: application/json" \
+  -d '{"displayName":"Alex Updated","email":"alex@example.com"}'
 ```
 
-For Socket.IO event names, payloads, and project internals, see [server/README.md](server/README.md).
+More detail: [server/README.md](server/README.md) (HTTP + Socket.IO), [frontend/README.md](frontend/README.md) (UI + client integration).
 
 ## Changelog
 
-| Date / milestone | Summary |
-|------------------|---------|
-| Initial commit | Repository and MIT license |
-| Server release | Full backend: auth, users, chat (REST + Socket.IO), stats, layered TypeScript architecture, `.env.example` |
+| Milestone | Summary |
+|-----------|---------|
+| Initial | Repository and MIT license |
+| Server v1 | Auth, chat REST + Socket.IO, stats, layered architecture |
+| Users API | CRUD-style user routes, roles, soft delete, admin middleware |
+| Frontend v1 | Chat UI, auth, profile, admin users page, responsive layout |
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE) — Copyright (c) 2026 Rahul-Bhatt03.
+[MIT License](LICENSE) — Copyright (c) 2026 Rahul-Bhatt03.
